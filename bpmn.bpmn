@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definition_PatientExamFlow" targetNamespace="http://example.com/bpmn" exporter="Camunda Modeler" exporterVersion="5.33.1">
+  <bpmn:process id="PatientExamFlow" name="Patient Exam Orchestration" isExecutable="true" camunda:historyTimeToLive="365">
+    <bpmn:startEvent id="StartEvent" name="Start Patient Exam Flow">
+      <bpmn:outgoing>Flow_Start_CollectInput</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="UserTask_CollectInput" name="Collect Patient &#38; Exam Details">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="patiendId" label="Patient ID (if known)" type="string">
+            <camunda:properties />
+            <camunda:validation />
+          </camunda:formField>
+          <camunda:formField id="firstName" label="First Name" type="string" />
+          <camunda:formField id="lastName" label="	Last Name" type="string" />
+          <camunda:formField id="birthDate" label="	Date of Birth" type="date" />
+          <camunda:formField id="examDate" label="Examination Date" type="date" />
+          <camunda:formField id="anamnesis" label="Anamnesis" type="string" />
+          <camunda:formField id="diagnosis" label="Diagnosis" type="string" />
+          <camunda:formField id="sampleType" label="Sample Type" type="string" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Start_CollectInput</bpmn:incoming>
+      <bpmn:outgoing>Flow_CollectInput_CreateOrLookupPatient</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="ServiceTask_CreateOrLookupPatient" name="Create or Lookup Patient" camunda:type="external" camunda:topic="createOrLookupPatient">
+      <bpmn:incoming>Flow_CollectInput_CreateOrLookupPatient</bpmn:incoming>
+      <bpmn:outgoing>Flow_Patient_CreateExamination</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ServiceTask_CreateExamination" name="Create Examination" camunda:type="external" camunda:topic="createExamination">
+      <bpmn:incoming>Flow_Patient_CreateExamination</bpmn:incoming>
+      <bpmn:outgoing>Flow_Examination_RecordExamResults</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ServiceTask_RecordExamResults" name="Record Exam Results" camunda:type="external" camunda:topic="recordExamResults">
+      <bpmn:incoming>Flow_Examination_RecordExamResults</bpmn:incoming>
+      <bpmn:outgoing>Flow_RecordExamResults_CollectSample</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ServiceTask_CollectSample" name="Collect Sample" camunda:type="external" camunda:topic="collectSample">
+      <bpmn:incoming>Flow_RecordExamResults_CollectSample</bpmn:incoming>
+      <bpmn:outgoing>Flow_CollectSample_RecordSample</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ServiceTask_RecordSample" name="Record Sample" camunda:type="external" camunda:topic="recordSample">
+      <bpmn:incoming>Flow_CollectSample_RecordSample</bpmn:incoming>
+      <bpmn:outgoing>Flow_RecordSample_ProcessSample</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ServiceTask_ProcessSample" name="Process Sample" camunda:type="external" camunda:topic="processSample">
+      <bpmn:incoming>Flow_RecordSample_ProcessSample</bpmn:incoming>
+      <bpmn:outgoing>Flow_ProcessSample_EvaluateSample</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ServiceTask_EvaluateSample" name="Evaluate Sample" camunda:type="external" camunda:topic="evaluateSample">
+      <bpmn:incoming>Flow_ProcessSample_EvaluateSample</bpmn:incoming>
+      <bpmn:outgoing>Flow_1xdvr8t</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ServiceTask_PrescribeMedication" name="Prescribe Medication" camunda:type="external" camunda:topic="prescribeMedication">
+      <bpmn:incoming>Flow_1xdvr8t</bpmn:incoming>
+      <bpmn:outgoing>Flow_PrescribeMedication_CreatePrescription</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ServiceTask_CreatePrescription" name="Create Prescription" camunda:type="external" camunda:topic="createPrescription">
+      <bpmn:incoming>Flow_PrescribeMedication_CreatePrescription</bpmn:incoming>
+      <bpmn:outgoing>Flow_CreatePrescription_Aggregate</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:scriptTask id="ScriptTask_AggregateOutput" name="Aggregate Final Output" scriptFormat="javascript">
+      <bpmn:incoming>Flow_CreatePrescription_Aggregate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Aggregate_End</bpmn:outgoing>
+      <bpmn:script>
+var output = {
+  patientId: execution.getVariable('patientId'),
+  examResult: execution.getVariable('examResult'),
+  collectedSample: execution.getVariable('collectedSample'),
+  sampleResult: execution.getVariable('sampleResult'),
+  prescriptionConfirmation: execution.getVariable('prescriptionConfirmation'),
+  createdPrescription: execution.getVariable('createdPrescription')
+};
+execution.setVariable('finalOutput', output);
+      </bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="EndEvent">
+      <bpmn:incoming>Flow_Aggregate_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Start_CollectInput" sourceRef="StartEvent" targetRef="UserTask_CollectInput" />
+    <bpmn:sequenceFlow id="Flow_CollectInput_CreateOrLookupPatient" sourceRef="UserTask_CollectInput" targetRef="ServiceTask_CreateOrLookupPatient" />
+    <bpmn:sequenceFlow id="Flow_Patient_CreateExamination" sourceRef="ServiceTask_CreateOrLookupPatient" targetRef="ServiceTask_CreateExamination" />
+    <bpmn:sequenceFlow id="Flow_Examination_RecordExamResults" sourceRef="ServiceTask_CreateExamination" targetRef="ServiceTask_RecordExamResults" />
+    <bpmn:sequenceFlow id="Flow_RecordExamResults_CollectSample" sourceRef="ServiceTask_RecordExamResults" targetRef="ServiceTask_CollectSample" />
+    <bpmn:sequenceFlow id="Flow_CollectSample_RecordSample" sourceRef="ServiceTask_CollectSample" targetRef="ServiceTask_RecordSample" />
+    <bpmn:sequenceFlow id="Flow_RecordSample_ProcessSample" sourceRef="ServiceTask_RecordSample" targetRef="ServiceTask_ProcessSample" />
+    <bpmn:sequenceFlow id="Flow_ProcessSample_EvaluateSample" sourceRef="ServiceTask_ProcessSample" targetRef="ServiceTask_EvaluateSample" />
+    <bpmn:sequenceFlow id="Flow_EvaluateSample_PrescribeMedication" sourceRef="ServiceTask_EvaluateSample" targetRef="ServiceTask_PrescribeMedication"/>
+    <bpmn:sequenceFlow id="Flow_PrescribeMedication_CreatePrescription" sourceRef="ServiceTask_PrescribeMedication" targetRef="ServiceTask_CreatePrescription" />
+    <bpmn:sequenceFlow id="Flow_CreatePrescription_Aggregate" sourceRef="ServiceTask_CreatePrescription" targetRef="ScriptTask_AggregateOutput" />
+    <bpmn:sequenceFlow id="Flow_Aggregate_End" sourceRef="ScriptTask_AggregateOutput" targetRef="EndEvent" />
+    <bpmn:sequenceFlow id="Flow_1xdvr8t" sourceRef="ServiceTask_EvaluateSample" targetRef="ServiceTask_PrescribeMedication" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_PatientExamFlow">
+    <bpmndi:BPMNPlane id="BPMNPlane_PatientExamFlow" bpmnElement="PatientExamFlow">
+      <bpmndi:BPMNShape id="StartEvent_shape" bpmnElement="StartEvent">
+        <dc:Bounds x="170" y="100" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="157" y="136" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_CollectInput_shape" bpmnElement="UserTask_CollectInput">
+        <dc:Bounds x="270" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_CreateOrLookupPatient_shape" bpmnElement="ServiceTask_CreateOrLookupPatient">
+        <dc:Bounds x="420" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_CreateExamination_shape" bpmnElement="ServiceTask_CreateExamination">
+        <dc:Bounds x="570" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_RecordExamResults_shape" bpmnElement="ServiceTask_RecordExamResults">
+        <dc:Bounds x="720" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_CollectSample_shape" bpmnElement="ServiceTask_CollectSample">
+        <dc:Bounds x="870" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_RecordSample_shape" bpmnElement="ServiceTask_RecordSample">
+        <dc:Bounds x="1020" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_ProcessSample_shape" bpmnElement="ServiceTask_ProcessSample">
+        <dc:Bounds x="1170" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_EvaluateSample_shape" bpmnElement="ServiceTask_EvaluateSample">
+        <dc:Bounds x="1320" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_PrescribeMedication_shape" bpmnElement="ServiceTask_PrescribeMedication">
+        <dc:Bounds x="1470" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_CreatePrescription_shape" bpmnElement="ServiceTask_CreatePrescription">
+        <dc:Bounds x="1620" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ScriptTask_AggregateOutput_shape" bpmnElement="ScriptTask_AggregateOutput">
+        <dc:Bounds x="1770" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_shape" bpmnElement="EndEvent">
+        <dc:Bounds x="1920" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_CollectInput_edge" bpmnElement="Flow_Start_CollectInput">
+        <di:waypoint x="206" y="118" />
+        <di:waypoint x="270" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CollectInput_CreateOrLookupPatient_edge" bpmnElement="Flow_CollectInput_CreateOrLookupPatient">
+        <di:waypoint x="370" y="118" />
+        <di:waypoint x="420" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Patient_CreateExamination_edge" bpmnElement="Flow_Patient_CreateExamination">
+        <di:waypoint x="520" y="118" />
+        <di:waypoint x="570" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Examination_RecordExamResults_edge" bpmnElement="Flow_Examination_RecordExamResults">
+        <di:waypoint x="670" y="118" />
+        <di:waypoint x="720" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_RecordExamResults_CollectSample_edge" bpmnElement="Flow_RecordExamResults_CollectSample">
+        <di:waypoint x="820" y="118" />
+        <di:waypoint x="870" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CollectSample_RecordSample_edge" bpmnElement="Flow_CollectSample_RecordSample">
+        <di:waypoint x="970" y="118" />
+        <di:waypoint x="1020" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_RecordSample_ProcessSample_edge" bpmnElement="Flow_RecordSample_ProcessSample">
+        <di:waypoint x="1120" y="118" />
+        <di:waypoint x="1170" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ProcessSample_EvaluateSample_edge" bpmnElement="Flow_ProcessSample_EvaluateSample">
+        <di:waypoint x="1270" y="118" />
+        <di:waypoint x="1320" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PrescribeMedication_CreatePrescription_edge" bpmnElement="Flow_PrescribeMedication_CreatePrescription">
+        <di:waypoint x="1570" y="118" />
+        <di:waypoint x="1620" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CreatePrescription_Aggregate_edge" bpmnElement="Flow_CreatePrescription_Aggregate">
+        <di:waypoint x="1720" y="118" />
+        <di:waypoint x="1770" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Aggregate_End_edge" bpmnElement="Flow_Aggregate_End">
+        <di:waypoint x="1870" y="118" />
+        <di:waypoint x="1920" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1xdvr8t_di" bpmnElement="Flow_1xdvr8t">
+        <di:waypoint x="1420" y="120" />
+        <di:waypoint x="1470" y="120" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
